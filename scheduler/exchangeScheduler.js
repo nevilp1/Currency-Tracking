@@ -5,54 +5,41 @@ import {
 } from 'discord.js';
 
 import {
-    getUsdToIdr
+    getBCARates
 } from '../services/exchangeService.js';
 
 export function startExchangeScheduler(client) {
 
     cron.schedule(
-        '20 11 * * *',
+        '53 23 * * *',
         async () => {
-
-            const rates = await getUsdToIdr();
-
             const channel = await client.channels.fetch(
                 process.env.CHANNEL_ID
             );
 
-            if (!channel) return;
+            const data = await getBCARates();
+            if (data && data['USD']) {
+                const rateEmbed = new EmbedBuilder()
+                    .setColor(0x00569c) // Official BCA Blue
+                    .setTitle('BCA Exchange Rates (USD)')
+                    .setURL('https://www.bca.co.id/id/informasi/kurs')
+                    // Using standard bold fields to make the rates dominant
+                    .addFields(
+                        { name: 'Buy Rate', value: data['USD'].buy, inline: true },
+                        { name: 'Sell Rate', value: data['USD'].sell, inline: true }
+                    )
+                    // Secondary information section
+                    .addFields({
+                        name: 'Quick Guide',
+                        value: '• **Buy Rate:** Bank buys from you\n• **Sell Rate:** Bank sells to you'
+                    })
+                    .setTimestamp()
+                    .setFooter({ text: 'Data directly scraped from BCA' });
 
-            const exchangeRateValue =
-                rates.exchangeRateApi
-                    ? `Rp ${rates.exchangeRateApi.toLocaleString('id-ID')}`
-                    : 'Failed';
-
-            const currencyFreaksValue =
-                rates.currencyFreaks
-                    ? `Rp ${rates.currencyFreaks.toLocaleString('id-ID')}`
-                    : 'Failed';
-
-            const embed = new EmbedBuilder()
-                .setTitle('💱 USD to IDR Rate')
-                .addFields(
-                    {
-                        name: 'ExchangeRate API',
-                        value: exchangeRateValue,
-                        inline: true
-                    },
-                    {
-                        name: 'CurrencyFreaks',
-                        value: currencyFreaksValue,
-                        inline: true
-                    }
-                )
-                .setColor(0x00AE86)
-                .setTimestamp();
-
-            await channel.send({
-                embeds: [embed]
-            });
-
+                await channel.send({ embeds: [rateEmbed] });
+            } else {
+                await channel.send("Failed to retrieve rates. Please try again later.");
+            }
         },
         {
             timezone: 'Asia/Jakarta'
