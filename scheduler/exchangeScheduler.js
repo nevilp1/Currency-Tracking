@@ -11,7 +11,7 @@ import {
 export function startExchangeScheduler(client) {
 
     cron.schedule(
-        '53 23 * * *',
+        '00 09 * * *',
         async () => {
             const channel = await client.channels.fetch(
                 process.env.CHANNEL_ID

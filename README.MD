@@ -26,3 +26,4 @@ A Node.js Discord bot that scrapes exchange rates directly from BCA.
 ## To-Do
 * [ ] Handling multiple channel_id
 * [ ] Add other currencies function
+* [ ] Create scheduler time management
