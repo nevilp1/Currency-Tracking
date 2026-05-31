@@ -41,6 +41,7 @@ Adjust the Supabase variable names if your `database.js` uses different names.
 * `infokurs`: Fetches and displays current USD rates.
 * `help`: Displays the bot help menu.
 * `kurshelp`: Alternative command for displaying the bot help menu.
+* `getschedule`: Display current schedule channel & time.
 
 ### Admin Commands
 

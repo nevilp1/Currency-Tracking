@@ -12,7 +12,7 @@ import {
 import {
     getBCARates
 } from './services/exchangeService.js'
-import { registerServer, setChannel, setScheduleTime, deleteBot } from './connection/database.js'
+import { registerServer, setChannel, setScheduleTime, deleteBot, getScheduleTime } from './connection/database.js'
 
 const client = new Client({
     intents: [
@@ -69,8 +69,13 @@ client.on('messageCreate', async (message) => {
 
         const serverId = message.guild.id;
         const channelId = message.channel.id;
+        const channelName = message.channel.name;
 
-        await setChannel(serverId, channelId, message)
+        await setChannel(serverId, channelId, channelName, message)
+    }
+    if (message.content.startsWith('getschedule')) {
+        const serverId = message.guild.id;
+        await getScheduleTime(serverId, message)
     }
     if (message.content.startsWith('setschedule')) {
 
@@ -108,7 +113,9 @@ client.on('messageCreate', async (message) => {
                         '`infokurs`\n' +
                         'Show the latest BCA USD buy and sell rates.\n\n' +
                         '`helpkurs` or `kurshelp`\n' +
-                        'Show this help message.'
+                        'Show this help message. \n\n' +
+                        '`getschedule`\n' +
+                        'Show current message schedule settings.'
                 },
                 {
                     name: 'Admin Commands',

@@ -39,6 +39,7 @@ export async function registerServer(guild) {
             .insert([{
                 channel_id: topChannel.id,
                 server_id: guild.id,
+                channel_name: topChannel.name
             }]);
 
         if (channelError && channelError.code !== '23505') {
@@ -52,14 +53,14 @@ export async function registerServer(guild) {
     }
 }
 
-export async function setChannel(serverId, channelId, message) {
+export async function setChannel(serverId, channelId, channelName, message) {
     try {
         // 2. Perform an Upsert into Supabase
         // This updates the channel_id if the server_id exists, or inserts a new row if it doesn't.
         const { error } = await supabase
             .from('cb_discord_channel')
             .upsert(
-                { server_id: serverId, channel_id: channelId },
+                { server_id: serverId, channel_id: channelId, channel_name: channelName },
                 { onConflict: 'server_id' } // Matches the unique database constraint
             );
 
@@ -98,6 +99,25 @@ export async function setScheduleTime(timeInput, serverId, message) {
     } catch (err) {
         console.error(`Database error during !setschedule:`, err.message);
         await message.reply("Failed to update the schedule due to a system database error.");
+    }
+}
+
+export async function getScheduleTime(serverId, message) {
+    try {
+        // 3. Update the targeted row inside Supabase
+        const { data, error } = await supabase
+            .from('cb_discord_channel')
+            .select()
+            .eq('server_id', serverId);
+
+        if (error) throw error;
+
+        if (data.length > 0)
+            await message.reply(`Your daily BCA currency rate announcement has been scheduled for #${data[0].channel_name} at **${data[0].schedule_time.slice(0, 5)}** (Asia/Jakarta).`);
+
+    } catch (err) {
+        console.error(`Database error during getschedule:`, err.message);
+        await message.reply("Failed to get the schedule due to a system database error.");
     }
 }
 
