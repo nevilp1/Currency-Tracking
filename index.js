@@ -3,7 +3,11 @@ import {
     Client,
     GatewayIntentBits,
     EmbedBuilder,
-    PermissionFlagsBits
+    PermissionFlagsBits,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ComponentType
 } from 'discord.js';
 
 import {
@@ -35,31 +39,89 @@ client.on('guildCreate', async (guild) => {
 });
 
 client.on('messageCreate', async (message) => {
-    if (message.content === 'infokurs') {
+    if (message.content.toLowerCase() === 'infokurs') {
         const data = await getBCARates();
 
-        if (data && data['USD']) {
-            const rateEmbed = new EmbedBuilder()
+        // 1. Check if data is valid and has keys
+        if (!data || Object.keys(data).length === 0) {
+            return message.channel.send("Failed to retrieve current rates.");
+        }
+
+        // 2. Convert the scraped object into an array of currency codes
+        const currencies = Object.keys(data); // e.g., ['USD', 'SGD', 'EUR', 'AUD']
+        let currentIndex = 0; // Start at the first currency (index 0)
+
+        // 3. Helper function to generate the embed dynamically based on the current currency
+        const generateEmbed = (currency) => {
+            return new EmbedBuilder()
                 .setColor(0x00569c) // Official BCA Blue
-                .setTitle('BCA Exchange Rates (USD)')
+                .setTitle(`BCA Exchange Rates (${currency})`)
                 .setURL('https://www.bca.co.id/id/informasi/kurs')
-                // Using standard bold fields to make the rates dominant
                 .addFields(
-                    { name: 'Buy Rate', value: data['USD'].buy, inline: true },
-                    { name: 'Sell Rate', value: data['USD'].sell, inline: true }
+                    { name: 'Buy Rate', value: data[currency].buy, inline: true },
+                    { name: 'Sell Rate', value: data[currency].sell, inline: true }
                 )
-                // Secondary information section
                 .addFields({
                     name: 'Quick Guide',
                     value: '• **Buy Rate:** Bank buys from you\n• **Sell Rate:** Bank sells to you'
                 })
                 .setTimestamp()
-                .setFooter({ text: 'Data directly scraped from BCA' });
+                .setFooter({ text: `Page ${currentIndex + 1} of ${currencies.length} | Scraped from BCA` });
+        };
 
-            await message.channel.send({ embeds: [rateEmbed] });
-        } else {
-            await message.channel.send("Failed to retrieve current rates.");
-        }
+        // 4. Helper function to generate the Next/Previous buttons
+        const generateButtons = () => {
+            return new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('prev_currency')
+                    .setEmoji('⬅️') // Switched to setEmoji for tighter padding
+                    .setStyle(ButtonStyle.Secondary) // Switched to Secondary (Neutral Grey)
+                    .setDisabled(currentIndex === 0),
+                new ButtonBuilder()
+                    .setCustomId('next_currency')
+                    .setEmoji('➡️')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setDisabled(currentIndex === currencies.length - 1)
+            );
+        };
+
+        // 5. Send the initial message with the first currency and the buttons
+        const replyMessage = await message.channel.send({
+            embeds: [generateEmbed(currencies[currentIndex])],
+            components: [generateButtons()]
+        });
+
+        // 6. Create a collector to listen for button clicks (expires after 60 seconds)
+        // 1. Increase the initial time to 5 minutes (300000 milliseconds)
+        const collector = replyMessage.createMessageComponentCollector({
+            componentType: ComponentType.Button,
+            time: 300000 // Changed from 60000 to 300000
+        });
+
+        collector.on('collect', async (interaction) => {
+            if (interaction.user.id !== message.author.id) {
+                return interaction.reply({ content: "These buttons aren't for you!", ephemeral: true });
+            }
+
+            // 2. ADD THIS LINE: Reset the countdown timer every time they click an arrow!
+            collector.resetTimer();
+
+            if (interaction.customId === 'prev_currency') {
+                currentIndex--;
+            } else if (interaction.customId === 'next_currency') {
+                currentIndex++;
+            }
+
+            await interaction.update({
+                embeds: [generateEmbed(currencies[currentIndex])],
+                components: [generateButtons()]
+            });
+        });
+
+        collector.on('end', () => {
+            // Removes the buttons when the timer finally runs out
+            replyMessage.edit({ components: [] }).catch(console.error);
+        });
     }
     if (message.content === 'setchannel') {
         // 1. Safety Check: Only allow administrators to change the channel
